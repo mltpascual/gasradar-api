@@ -11,6 +11,8 @@ from app.config import settings
 from app.utils.logging import setup_logging
 from app.middleware.rate_limiter import setup_rate_limiter
 from app.routers import stations, reports, countries, admin
+from app.database import engine, Base
+from app.models import core  # noqa: F401 — ensure all models are registered with Base
 
 logger = setup_logging()
 
@@ -21,6 +23,12 @@ async def lifespan(app: FastAPI):
     logger.info("[API] GasRadar API starting up...")
     logger.info("[API] Version: %s", settings.APP_VERSION)
     logger.info("[API] Debug: %s", settings.DEBUG)
+
+    # Auto-create tables on startup (safe for MVP — idempotent)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    logger.info("[API] Database tables ensured.")
+
     yield
     logger.info("[API] GasRadar API shutting down...")
 
